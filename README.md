@@ -1,2 +1,2 @@
-# SwiftUI-CC
+# SwiftUICC
 CustomCalendar for SwiftUI
