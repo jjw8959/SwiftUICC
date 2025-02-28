@@ -5,40 +5,38 @@
 //  Created by woong on 1/31/25.
 //
 
+//    TODO: month만 쓸지 고려하기
+
+// TODO: 셀 크기 외부에서 받을 수 있도록 하기
+
+
+// 추가로 deselect 되게끔 할건지 그런것도 확인하기.
+
+// TODO: 전후로 날짜들 보여주기
+
 import SwiftUI
 
 public struct BaseCalendarView: View {
-    @State var month: Date
+    let calendar = Calendar.current
     
-    var headerType: HeaderType?
-    var monthType: MonthType?
+    @State var month: Date
+    private var headerType: HeaderType
+    private var monthType: MonthType
+    private var isShowOtherDays: Bool
     
     @State var clickedDays: Set<Date> = []
     
-    private var tempMonth: String = Date().toString(format: "M")
-    private var displayMonth: String {
-        set {
-            tempMonth = newValue
-        }
-        
-        get {
-            return tempMonth
-        }
-    }
-    
-    init(month: Date, headerType: HeaderType? = .month, monthType: MonthType? = .MM) {
+    init(month: Date,
+         headerType: HeaderType = .month,
+         monthType: MonthType = .MM,
+         isShowOtherDays: Bool = false) {
         self.month = month
         self.headerType = headerType
         self.monthType = monthType
+        self.isShowOtherDays = isShowOtherDays
         
-        guard let mt = monthType else { return }
-        changeMonthType(for: mt)
+        changeMonthType(for: monthType)
     }
-    
-//    init(month: Date, headerType: HeaderType? = .month) {
-//        self.month = month
-//        self.headerType = headerType
-//    }
     
     public var body: some View {
         VStack {
@@ -47,18 +45,21 @@ public struct BaseCalendarView: View {
         }
     }
     
-//    TODO: month만 쓸지 고려하기
+//    TODO: .month만 쓸지 고려하기
     private var header: some View {
         HStack(alignment: .center) {
             switch headerType {
             case .yearMonth:
-                Text("\(displayMonth)")
+                Text("\(month)")
                     .font(.title2)
                     .fontWeight(.bold)
             case .month:
                 HStack {
                     Button {
-                        changeMonth(by: -1)
+                        withAnimation(nil) {
+                            changeMonth(by: -1)
+                        }
+                        
                     } label: {
                         Image(systemName: "chevron.left")
                             .font(.title)
@@ -69,17 +70,13 @@ public struct BaseCalendarView: View {
                         .fontWeight(.bold)
                     
                     Button {
-                        changeMonth(by: 1)
+                        withAnimation(nil) {
+                            changeMonth(by: 1)
+                        }
                     } label: {
                         Image(systemName: "chevron.right")
                             .font(.title)
                     }
-                }
-            case nil:
-                VStack {
-                    Text("\(displayMonth)")
-                        .font(.title2)
-                        .fontWeight(.bold)
                 }
             }
         }
@@ -99,27 +96,53 @@ public struct BaseCalendarView: View {
         
         return VStack {
             LazyVGrid(columns: columns) {
-                
-                let _ = print("----------------------------")
-                let _ = print("🏠Month:",month)
-                let _ = print("daysInMonth:",daysInMonth(date: month))
-                let _ = print("firstDayOfMonth:",getFirstDayOfMonthInt(date: month))
-                let _ = print("rows:",rows)
-                let _ = print("----------------------------")
-                
-                ForEach(0..<totalItems, id: \.self) { num in
-                    let dayNum = num + 2 - getFirstDayOfMonthInt(date: month)
+                ForEach(0..<totalItems, id: \.self) { index in
+                    let dayNum = index + 2 - getFirstDayOfMonthInt(date: month)
                     let constForclickedDaycheck:Date = getDate(for: dayNum)
                     let isClicked = clickedDays.contains(constForclickedDaycheck)
                     
-                    DateCell(day: dayNum, clicked: isClicked)
-                        .onTapGesture {
-                            if isClicked {
-                                clickedDays.remove(constForclickedDaycheck)
-                            } else {
-                                clickedDays.insert(constForclickedDaycheck)
-                            }
+//                    TODO: 전후 날짜의 deselect 여부도 생각하기.
+                    let lastDayNum = Int(getLastDay().toString(format: "dd"))!
+                    
+//                    isShowOtherDays에 따라 이전/이후 날짜 보여줌
+                    if isShowOtherDays { // 보여줌
+                        if dayNum < 1 || dayNum > lastDayNum {
+                            let dayNumber = calculateDateNum(for: dayNum)
+                            DateCell(day: dayNumber, clicked: isClicked, isShowOtherDays: true, dayColor: .deactivate)
+                        } else {
+                            let dayNumber = calculateDateNum(for: dayNum)
+                            
+                            DateCell(day: dayNumber, clicked: isClicked, isShowOtherDays: true, dayColor: .normal)
+                                .onTapGesture {
+                                    if isClicked {
+                                        clickedDays.remove(constForclickedDaycheck)
+                                    } else {
+                                        clickedDays.insert(constForclickedDaycheck)
+                                    }
+                                }
+//                                TODO: 셀 크기 외부에서 받을 수 있도록 하기
+                                .frame(height: 80)
                         }
+                        
+                            
+                    } else { // 안보여줌
+                        if dayNum < 1 || dayNum > lastDayNum {
+                            Rectangle()
+                                .foregroundStyle(.clear)
+                        } else {
+                            DateCell(day: dayNum, clicked: isClicked, isShowOtherDays: false)
+                                .frame(height: 80)
+                                .onTapGesture {
+                                    if isClicked {
+                                        clickedDays.remove(constForclickedDaycheck)
+                                    } else {
+                                        clickedDays.insert(constForclickedDaycheck)
+                                    }
+                                }
+//                            TODO: 셀 크기 외부에서 받을 수 있도록 하기
+                                
+                        }
+                    }
                 }
             }
         }
@@ -127,34 +150,56 @@ public struct BaseCalendarView: View {
 }
 
 private struct DateCell: View {
-    var day: Int
-    var clicked: Bool = false
-    var showOtherDays: Bool = false
+    private var day: Int
+    private var clicked: Bool = false
+    private var showOtherDays: Bool
+    private var dayColor: DayColorType
     
-    init(day: Int, clicked: Bool) {
+    private var textColor = Color.yellow
+    
+    init(day: Int,
+         clicked: Bool,
+         isShowOtherDays: Bool = false,
+         dayColor: DayColorType = .normal) {
         self.day = day
         self.clicked = clicked
+        self.showOtherDays = isShowOtherDays
+        self.dayColor = dayColor
+        
+        switch dayColor {
+        case .normal:
+            textColor = Color.black
+        case .deactivate:
+            textColor = .gray
+        case .satBlue:
+            textColor = .blue
+        case .holiday:
+            textColor = .red
+        }
     }
     
     var body: some View {
         VStack {
             if showOtherDays {
-                
-//                TODO: 전후로 날짜들 보여주기
-                
                 Text("\(day)")
-    //            TODO: 여기도 커스텀 가능하도록
+                    .foregroundStyle(textColor)
+//                    .padding(.bottom)
+                
+//                TODO: multi or single selection 선택하기
+//                TODO: 가능하다면 시작일 끝나는일 선택 하면 연달아서 선택할 수 있도록(반환하는 함수에서 시작일, 종료일에 대한 연속적인 Date변수 넘겨주기)
                 if clicked {
                     Circle()
                         .foregroundStyle(.red)
+                        .frame(width: 10, height: 10)
                 }
                 
             } else {
                 Text("\(day)")
-    //            TODO: 여기도 커스텀 가능하도록
+//                    .padding(.bottom)
                 if clicked {
                     Circle()
                         .foregroundStyle(.red)
+                        .frame(width: 10, height: 10)
                 }
             }
             
@@ -225,6 +270,14 @@ private extension BaseCalendarView {
         return Calendar.current.component(.weekday, from: firstDay)
     }
     
+    /// 현재 달 마지막 날 Date로 반환
+    func getLastDay() -> Date {
+        let dateComp = Calendar.current.dateComponents([.year, .month], from: month)
+        var tempDate = calendar.date(from: dateComp)
+        tempDate = calendar.date(byAdding: .month, value: 1, to: tempDate!)
+        return calendar.date(byAdding: .day, value: -1, to: tempDate!)!
+    }
+    
     /// 특정일 Int -> Date로 반환
     func getDate(for day: Int) -> Date {
         return Calendar.current.date(byAdding: .day, value: day, to: getFirstDayOfMonthDate(date: month))!
@@ -232,21 +285,27 @@ private extension BaseCalendarView {
     
     /// 특정일 Int -> Int로 변환
     func calculateDateNum(for day: Int) -> Int {
-        let result = 0
+        var result = day
+        var day = day
         
         if day < 1 {
-            
+            day -= 1
+            let temp = Calendar.current.date(byAdding: .day, value: day, to: getFirstDayOfMonthDate(date: month))
+            result = Int((temp?.toString(format: "dd"))!)!
         }
         
-        if day < 31 { // 여기에 31이 아니라 month 의 마지막날보다 큰 지 체크
-            
+        let lastDayInt = Int(getLastDay().toString(format: "dd"))!
+        
+        if day > lastDayInt { // 여기에 31이 아니라 month 의 마지막날보다 큰 지 체크
+            result = day - lastDayInt
         }
         
-        return 1
+        return result
     }
 }
 
 extension BaseCalendarView {
+//    TODO: private extension으로 옮겨놓기
     func changeMonthType(for mt: MonthType) {
         switch mt {
         case .M:
@@ -267,7 +326,6 @@ extension BaseCalendarView {
     }
 }
 
-
 extension BaseCalendarView {
     static let weekdaySymbols = Calendar.current.veryShortWeekdaySymbols
     
@@ -281,5 +339,5 @@ extension BaseCalendarView {
 #Preview("iOS") {
     @Previewable @State var month = Date()
     
-    BaseCalendarView(month: month)
+    BaseCalendarView(month: month, isShowOtherDays: false)
 }
