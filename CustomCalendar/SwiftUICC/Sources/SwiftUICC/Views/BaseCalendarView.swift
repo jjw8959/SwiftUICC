@@ -184,22 +184,25 @@ private struct DateCell: View {
                 Text("\(day)")
                     .foregroundStyle(textColor)
 //                    .padding(.bottom)
-                
+                Spacer()
 //                TODO: multi or single selection 선택하기
 //                TODO: 가능하다면 시작일 끝나는일 선택 하면 연달아서 선택할 수 있도록(반환하는 함수에서 시작일, 종료일에 대한 연속적인 Date변수 넘겨주기)
                 if clicked {
                     Circle()
                         .foregroundStyle(.red)
                         .frame(width: 10, height: 10)
+                    Spacer()
                 }
                 
             } else {
                 Text("\(day)")
 //                    .padding(.bottom)
+                Spacer()
                 if clicked {
                     Circle()
                         .foregroundStyle(.red)
                         .frame(width: 10, height: 10)
+                    Spacer()
                 }
             }
             
