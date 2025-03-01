@@ -19,18 +19,18 @@ import SwiftUI
 public struct BaseCalendarView: View {
     let calendar = Calendar.current
     
-    @State var month: Date
+    @State private var month: Date
     private var headerType: HeaderType
     private var monthType: MonthType
     private var isShowOtherDays: Bool
     
-    @State var clickedDays: Set<Date> = []
+    @State private var clickedDays: Set<Date> = []
     
     init(month: Date,
          headerType: HeaderType = .month,
          monthType: MonthType = .MM,
          isShowOtherDays: Bool = false) {
-        self.month = month
+        self._month = State(initialValue: month)
         self.headerType = headerType
         self.monthType = monthType
         self.isShowOtherDays = isShowOtherDays
